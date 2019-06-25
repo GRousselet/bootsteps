@@ -1,0 +1,692 @@
+---
+title: "Percentile bootstrap: step-by-step instructions"
+author: "Guillaume A. Rousselet"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_caption: no
+    number_sections: no
+    toc: yes
+    toc_depth: 2
+---
+
+# Dependencies
+```{r, message=FALSE, warning=FALSE}
+library(tibble)
+library(ggplot2)
+library(cowplot)
+source("./functions/theme_gar.txt")
+source("./functions/Rallfun-v35.txt")
+```
+
+```{r}
+sessionInfo()
+```
+
+# Bootstrap implementation
+
+We start by looking at how the bootstrap is implemented in the one-sample case.
+See an interactive demo [here](https://seeing-theory.brown.edu/frequentist-inference/index.html#section2). The core mechanism of the bootstrap is sampling with replacement, which is equivalent to simulating experiments using only the data at hand.
+
+## Sampling with replacement
+
+Let's say we have a sample that is a sequence of integers, from 1 to 6.
+
+```{r}
+n <- 6 # sample size
+samp <- 1:n
+samp
+```
+
+To make bootstrap inferences, we sample with replacement from that sequence using the `sample()` function. That's the engine under the hood of any bootstrap technique. Let's generate our first bootstrap sample:
+```{r}
+set.seed(21) # for reproducible results
+sample(samp, size = n, replace = TRUE) # sample with replacement
+```
+
+We do it again, getting a different bootstrap sample:
+```{r}
+sample(samp, size = n, replace = TRUE) # sample with replacement
+```
+
+Third time:
+```{r}
+sample(samp, size = n, replace = TRUE) # sample with replacement
+```
+
+We could also generate our 3 bootstrap samples in one go:
+```{r}
+set.seed(21) # reproducible example
+nboot <- 3
+matrix(sample(samp, size = n*nboot, replace = TRUE), nrow = nboot, byrow = TRUE)
+```
+
+As is apparent from these 3 examples, in a bootstrap sample, some observations are sampled more than once and others are not sampled at all. So each bootstrap sample is like a virtual experiment in which we draw random observations from our original sample. 
+
+## Bootstrap mean estimates
+
+How do we use the bootstrap samples? It might be tempting to use them to make inferences about the mean of our sample (as we will see below this is a bad idea). With the bootstrap, we ask: what are the plausible sample means compatible with our data, without making any parametric assumptions? To answer this question, we take bootstrap samples by sampling with replacement from the data. For each bootstrap sample, we compute the mean. This can be done using a `for` loop. Although `for` loops can be avoided, they are very practical in many situations and they make the code easier to read. 
+
+### Loop
+```{r}
+set.seed(21) # reproducible results
+nboot <- 1000 # number of bootstrap samples
+
+# declare vector of results
+boot.m <- vector(mode = "numeric", length = nboot) 
+
+for(B in 1:nboot){
+  boot.samp <- sample(samp, size = n, replace = TRUE) # sample with replacement
+  boot.m[B] <- mean(boot.samp) # save bootstrap means
+}
+```
+
+### Same in one line of code
+```{r}
+set.seed(21)
+boot.m <- apply(matrix(sample(samp, size = n*nboot, replace = TRUE), nrow = nboot), 1, mean)
+```
+
+### Illustrate bootstrap samples
+The lollipop chart shown below illustrates the first 50 bootstrap means, in the order in which they were sampled. The grey horizontal line marks the sample mean (3.5). The bootstrap means randomly fluctuate around the sample mean. They represent the means we could expect if we were to repeat the same experiment many times, given that we can only sample from the data at hand.
+
+```{r}
+n.show <- 50 # show only n first bootstrap means
+df <- tibble(x = 1:n.show, y = boot.m[1:n.show])
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_hline(yintercept = mean(samp), colour = "grey", size = 1) +
+  geom_segment(aes(x=x, xend=x, y=0, yend=y)) +
+  geom_point(size=2.5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) +
+  scale_x_continuous(breaks = c(1, seq(10, 100, 10))) +
+  scale_y_continuous(breaks = seq(1, 6, 1)) +
+  coord_cartesian(ylim = c(0, 6)) +
+  labs(x = "Bootstrap samples", y = "Bootstrap means")
+# ggsave(filename=('./figures/figure_50bootsamp.pdf'),width=7,height=5)
+# ggsave(filename=('./figures/figure_50bootsamp.png'),width=7,height=5)
+```
+
+### Density plot
+We can illustrate all the bootstrap means using a density plot, which is like a smooth histogram. The density plot shows the relative probability of observing different bootstrap means. 
+
+```{r}
+df <- as_tibble(with(density(boot.m),data.frame(x,y)))
+
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_vline(xintercept = mean(samp), colour = "grey", size = 1) +
+  geom_line(size = 2) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  coord_cartesian(xlim = c(0, 6)) +
+  labs(x = "Bootstrap means", y = "Density")
+# ggsave(filename=('./figures/figure_bootdens.pdf'),width=7,height=5)
+# ggsave(filename=('./figures/figure_bootdens.png'),width=7,height=5)
+```
+
+### Confidence interval
+
+#### Formula
+We set alpha to 0.05 to get a 95% confidence interval. That means, if we were to repeat the same experiment many times, and for each experiment we compute a confidence interval, in the long-run, 95% of these intervals should contain the population value. This means that for a given experiment, the confidence interval does or does not contain the population we're trying to estimate. Also, the actual coverage depends on the method used to build the confidence interval and the quantity we're trying to estimate. In particular, it is well-known that the bootstrap should be used to build confidence intervals for the mean, because the coverage can be far from the expected value. For instance, when sampling from skewed distributions, the coverage can be much lower than the expected 95%. See next main section on how to use a simulation to check coverage.
+
+```{r}
+alpha <- 0.05
+ci <- quantile(boot.m, probs = c(alpha/2, 1-alpha/2))
+```
+
+There are many ways to estimate quantiles (the R function `quantile()` has 9 options for instance). In Rand Wilcox's functions, the procedure in the next chunk is used. With a large number of bootstrap samples, which quantile method is used should make little difference. 
+```{r}
+alpha <- 0.05
+bvec <- sort(boot.m)
+low <- round((alpha/2)*nboot) # 25
+up <- nboot-low # 975
+low <- low+1
+ci <- c(bvec[low],bvec[up]) # [2.17, 5]
+```
+
+#### Graphical representation
+The horizontal line marks the 95% confidence interval. The boxes report the values of the CI bounds. L stands for lower bound, U for upper bound.
+
+```{r}
+df <- as_tibble(with(density(boot.m),data.frame(x,y)))
+
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_vline(xintercept = mean(samp), colour = "grey", size = 1) +
+  geom_line(size = 2) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  coord_cartesian(xlim = c(0, 6)) +
+  labs(x = "Bootstrap means", y = "Density") +
+    # confidence interval ----------------------
+  geom_segment(x = ci[1], xend = ci[2],
+               y = 0, yend = 0,
+               lineend = "round", size = 3, colour = "orange") +
+  annotate(geom = "label", x = ci[1]+0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("L = ", round(ci[1], digits = 2))) +
+  annotate(geom = "label", x = ci[2]-0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("U = ", round(ci[2], digits = 2)))
+# ggsave(filename=('./figures/figure_bootdensci.pdf'),width=7,height=5)
+```
+
+### P value
+```{r}
+nv <- 2 # null value for hypothesis testing
+bvec <- sort(boot.m) # sort bootstrap means in ascending order
+pv <- mean(bvec>nv) +.5*mean(bvec==nv)
+pv <- 2*min(c(pv,1-pv)) # P value = 0.025
+```
+
+### Summary figure
+
+#### Make data frame
+```{r, warning=FALSE}
+df <- as_tibble(with(density(boot.m),data.frame(x,y)))
+
+df.pv1 <- tibble(x = df$x[df$x<nv],
+                y = df$y[df$x<nv])
+
+df.pv2 <- tibble(x = df$x[df$x>nv],
+                y = df$y[df$x>nv])
+```
+
+#### Make figure
+```{r}
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_vline(xintercept = mean(samp), colour = "grey", size = 1) +
+  # P value
+  geom_area(data = df.pv1,
+            aes(x = x, y = y),
+            fill = "red", alpha = 1) +
+  geom_area(data = df.pv2,
+            aes(x = x, y = y),
+            fill = "red", alpha = .2) +
+  # density
+  geom_line(data = df, size = 2) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  coord_cartesian(xlim = c(0, 6)) +
+  labs(x = "Bootstrap means", y = "Density") +
+  # Null value
+  geom_segment(x = nv,
+               xend = nv,
+               y = 0,
+               yend = df$y[which.min(abs(df$x-nv))],
+               size = 1,
+               colour = "black",
+               linetype = "dotted") +
+  # P value arrow -------------
+  geom_segment(x = 1.4, xend = 1.9, y = 0.1, yend = 0.01,
+               arrow = arrow(type = "closed", 
+                             length = unit(0.25, "cm")),
+               colour = "grey50", size = 1) +
+  annotate(geom = "label", x = 1, y = 0.1, size  = 7, 
+             colour = "white", fill = "red", fontface = "bold",
+             label = "P value / 2")
+# ggsave(filename=('./figures/figure_bootdenspval.pdf'),width=7,height=5)
+```
+
+You can get the bootstrap confidence interval and P value by calling the `onesampb()` function:
+```{r}
+onesampb(samp,est=mean,alpha=.05,nboot=1000,SEED=FALSE,nv=2)
+```
+It can be used with any estimator, define with the `est` parameter, for the median (`median`), a trimmed mean (`tm`), a quantile estimate (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
+
+Set `SEED` to `TRUE` to get the same results every time you use the function. Set it to `FALSE` to use difference random bootstrap samples, so the function returns different results every time you use it.
+`nv` is the null value used in computing the *P* value.
+
+# Check CI coverage
+Example of a simple simulation to check the probability coverage of a confidence interval method. 
+The simulation has 4,000 iterations. Increasing this number would lead to more precise results. For a simple test, 10,000 iterations or more could be used. For more complex applications, time might be a constraint.
+
+The sample size is 30, which seems reasonably high for a psychology experiment. A more systematic simulation should include sample size as a parameter. 
+
+The population is lognormal and is generated outside the simulation loop. An alternative is to generate the random numbers directly inside the loop by using `samp <- rlnorm(nsamp)`. The lognormal distribution is one of many skewed mathematical distributions. It serves to illustrate what can happen when sampling from skewed distributions in general. Other shapes could be used to, if some domain specific information is available. For instance, ex-Gaussian distributions do a good job at capturing the shape of reaction time distributions.
+
+The population means and trimmed means differ and are estimated independently in the simulation: the sample mean is used to make inferences about the population mean, whereas the sample trimmed mean is used to make inferences about the population trimmed mean.
+
+```{r, eval=FALSE}
+set.seed(666) # reproducible results
+nsim <- 5000 # simulation iterations
+nsamp <- 30 # sample size
+pop <- rlnorm(1000000) # define population
+pop.m <- mean(pop) # population mean
+pop.tm <- mean(pop, trim = 0.2) # population 20% trimmed mean
+ci.coverage <- matrix(0, nrow = nsim, ncol = 3) # declare matrix of results
+
+for(S in 1:nsim){ # simulation loop
+  samp <- sample(pop, nsamp, replace = TRUE) # random sample from population
+  # Mean + t-test
+  ci <- t.test(samp, mu = pop.m)$conf.int # standard t-test equation
+  ci.coverage[S,1] <- ci[1]<pop.m && ci[2]>pop.m # CI includes population value?
+  # Mean + bootstrap
+  ci <- onesampb(samp, est = mean, SEED = FALSE, nv = pop.m)$ci # get bootstrap confidence interval
+  ci.coverage[S,2] <- ci[1]<pop.m && ci[2]>pop.m # CI includes population value?
+  # 20% Trimmed mean
+  ci <- onesampb(samp, est = mean, SEED = FALSE, nv = pop.m, trim = 0.2)$ci # get bootstrap confidence interval
+  ci.coverage[S,3] <- ci[1]<pop.tm && ci[2]>pop.tm # CI includes population value?
+}
+
+apply(ci.coverage, 2, mean) # average across simulations
+
+# save simulation results to load in next chunk
+save(ci.coverage, file = "./data/ci.coverage.RData")
+```
+
+Here are the results:
+```{r}
+load("./data/ci.coverage.RData")
+out <- apply(ci.coverage, 2, mean) # average across simulations
+```
+
+Coverage is `r round(out[1]*100, digits = 1)`% for the t-test, `r round(out[2]*100, digits = 1)`% for the bootstrap + mean, and `r round(out[3]*100, digits = 1)`% for the bootstrap + 20% trimmed mean. This means that when sampling from a skewed distribution such as the lognormal distribution, coverage can be very different from the expected one (here 95% coverage).
+
+# Compare 2 groups: difference in location
+
+Inferences on 20% trimmed means of skewed distributions.
+
+## Make data
+
+We sample from log-normal distributions to mimic distributions of response times.
+
+```{r, warning = FALSE, message = FALSE}
+set.seed(44) # reproducible results
+
+# Group 1
+n1 <- 50
+m <- 400
+s <- 50
+location <- log(m^2 / sqrt(s^2 + m^2))
+shape <- sqrt(log(1 + (s^2 / m^2)))
+g1 <- rlnorm(n1, location, shape)
+
+# Group 2
+n2 <- 70
+m <- 500
+s <- 70
+location <- log(m^2 / sqrt(s^2 + m^2))
+shape <- sqrt(log(1 + (s^2 / m^2)))
+g2 <- rlnorm(n2, location, shape)
+```
+
+## Illustrate 2 groups
+```{r, fig.height=2}
+set.seed(22) # for reproducible jitter
+# raw data
+df <- tibble(val = c(g1, g2),
+             y = rep(1, n1+n2),
+             gp = factor(c(rep("Group 1",n1),rep("Group 2",n2)))
+             )
+
+df.q1 <- tibble(y = rep(0.9,2), 
+                yend = rep(1.1,2),
+                x = c(hd(g1,0.25), hd(g2, 0.25)), 
+                xend = x,
+                gp = factor(c("Group 1","Group 2"))
+                )
+
+df.q2 <- tibble(y = rep(0.9,2), 
+                yend = rep(1.1,2),
+                x = c(hd(g1,0.5), hd(g2, 0.5)), 
+                xend = x,
+                gp = factor(c("Group 1","Group 2"))
+                )
+
+df.q3 <- tibble(y = rep(0.9,2), 
+                yend = rep(1.1,2),
+                x = c(hd(g1,0.75), hd(g2, 0.75)), 
+                xend = x,
+                gp = factor(c("Group 1","Group 2"))
+                )
+
+p <- ggplot(data = df, aes(x = val, y = y)) + theme_gar +
+  # scatterplots
+  geom_jitter(height = .05, alpha = 0.3, size = 3) + # shape = 21, fill = "grey", colour = "black"
+  theme(axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(breaks = 1) +
+  # 1st quartile
+  geom_segment(data = df.q1, aes(y = y, yend = yend,
+    x = x, xend = xend),
+    size = 0.75, lineend = 'round', colour = "black") +
+  # median
+  geom_segment(data = df.q2, aes(y = y, yend = yend,
+    x = x, xend = xend),
+    size = 0.75, lineend = 'round', colour = "black") +
+  # 3rd quartile
+  geom_segment(data = df.q3, aes(y = y, yend = yend,
+    x = x, xend = xend),
+    size = 0.75, lineend = 'round', colour = "black") +
+  labs(x = "Response times (ms)") + 
+  facet_grid(cols = vars(gp)) +
+  coord_cartesian(xlim = c(0, 700)) + 
+  scale_x_continuous(breaks = seq(0, 1000, 100))
+p
+
+# ggsave(filename=('./figures/figure_2gps.pdf'),width=7,height=2.5)
+```
+
+## Bootstrap
+```{r}
+set.seed(1)
+nboot <- 1000
+# bootstrap sampling independently from each group
+boot1 <- matrix(sample(g1, size=n1*nboot, replace=TRUE), nrow=nboot)
+boot2 <- matrix(sample(g2, size=n2*nboot, replace=TRUE), nrow=nboot)
+# compute trimmed mean for each group and bootstrap sample
+boot1.tm <- apply(boot1, 1, mean, trim=0.2)
+boot2.tm <- apply(boot2, 1, mean, trim=0.2)
+# get distribution of sorted bootstrap differences
+boot.diff <- sort(boot1.tm - boot2.tm)
+```
+
+## Bootstrap confidence interval - as implemented in `pb2gen`
+```{r}
+alpha <- 0.05
+low <- round((alpha/2)*nboot) + 1
+up <- nboot - low
+ci <- c(boot.diff[low], boot.diff[up])
+```
+
+## Bootstrap confidence interval - using the `quantile` function
+```{r}
+alpha <- 0.05
+ci <- quantile(boot.diff, probs = c(alpha/2, 1-alpha/2)) # [-114.2, -66.1]
+```
+
+## Bootstrap P value
+```{r}
+nv <- 0 # null value
+pv <- sum(boot.diff<nv)/nboot + sum(boot.diff==nv)/(2*nboot)
+pv <- 2*(min(pv,1-pv)) # 0
+```
+
+## Function
+```{r}
+set.seed(1)
+pb2gen(g1, g2, alpha=0.05, nboot=1000, est=mean, SEED=FALSE, trim=0.2)
+```
+
+## Illustration
+```{r}
+diff <- mean(g1,trim=0.2) - mean(g2,trim=0.2) # group difference
+
+ci1 <- round(ci[1])
+ci2 <- round(ci[2])
+
+df <- as_tibble(with(density(boot.diff),data.frame(x,y)))
+
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_vline(xintercept = diff, colour = "grey", size = 1) +
+  geom_line(size = 2) +
+  scale_x_continuous(breaks = seq(-200, 200, 20)) +
+  coord_cartesian(xlim = c(-130, 0)) +
+  labs(x = "Bootstrap differences between 20% trimmed means", y = "Density") +
+    # confidence interval ----------------------
+  geom_segment(x = ci1, xend = ci2,
+               y = 0, yend = 0,
+               lineend = "round", size = 3, colour = "orange") +
+  annotate(geom = "label", x = ci1+0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("L = ", round(ci1, digits = 2))) +
+  annotate(geom = "label", x = ci2-0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("U = ", round(ci2, digits = 2)))
+# ggsave(filename=('./figures/figure_2gpsbootres.pdf'),width=7,height=5)
+```
+
+# Compare 2 groups: difference in spread
+Using the same data, now we look at differences in spread between group 1 and group 2. We make inferences on MAD, the median absolute deviation from the median, which is a robust measure of spread.
+
+## Bootstrap
+We already have generated bootstrap samples, so here we simply compute MAD for each of them.
+```{r}
+boot1.mad <- apply(boot1, 1, mad)
+boot2.mad <- apply(boot2, 1, mad)
+boot.diff <- sort(boot1.mad - boot2.mad)
+```
+
+## Bootstrap confidence interval
+```{r}
+ci <- c(boot.diff[low], boot.diff[up]) # [-59.1, 3.9]
+```
+
+## Bootstrap confidence interval - quantile method
+```{r}
+ci <- quantile(boot.diff, probs = c(alpha/2, 1-alpha/2)) # [-59.15, 5.12]
+```
+
+## Bootstrap P value
+```{r}
+pv <- sum(boot.diff<0)/nboot + sum(boot.diff==0)/(2*nboot)
+pv <- 2*(min(pv,1-pv)) # 0.084
+```
+
+## Illustration
+```{r}
+diff <- mad(g1) - mad(g2) # group difference
+
+ci1 <- round(ci[1])
+ci2 <- round(ci[2])
+
+df <- as_tibble(with(density(boot.diff),data.frame(x,y)))
+
+ggplot(df, aes(x = x, y = y)) + theme_gar +
+  geom_vline(xintercept = diff, colour = "grey", size = 1) +
+  geom_line(size = 2) +
+  scale_x_continuous(breaks = seq(-200, 200, 20)) +
+  coord_cartesian(xlim = c(-100, 50)) +
+  labs(x = "Bootstrap differences between MADs", y = "Density") +
+    # confidence interval ----------------------
+  geom_segment(x = ci1, xend = ci2,
+               y = 0, yend = 0,
+               lineend = "round", size = 3, colour = "orange") +
+  annotate(geom = "label", x = ci1+0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("L = ", round(ci1, digits = 2))) +
+  annotate(geom = "label", x = ci2-0.15, y = 0.1*max(df$y), size = 7,
+             colour = "white", fill = "orange", fontface = "bold",
+             label = paste("U = ", round(ci2, digits = 2)))
+# ggsave(filename=('./figures/figure_mad.pdf'),width=7,height=5)
+```
+
+## Function
+```{r}
+set.seed(1)
+pb2gen(g1, g2, alpha=0.05, nboot=1000, est=mad, SEED=FALSE)
+```
+
+# Bootstrap correlation coefficient
+
+In this example we sample from 2 weakly correlated variables. Changing the random seed or commenting out the line `set.seed(21)` will give different results. You can also change the population correlation by changing `rho`.
+
+## Make data
+```{r}
+set.seed(21)
+n <- 50 # sample size
+mu <- c(0, 0) # means of the variables
+rho <- 0.2 # population correlation between variables
+sigma1 <- matrix(c(1, rho, rho, 1), nrow = 2, byrow = TRUE) # covariance matrix
+
+# group 1
+data <- MASS::mvrnorm(n = n, mu = mu, Sigma = sigma1)
+x1 <- data[,1]
+y1 <- data[,2]
+```
+
+## Illustrate data
+```{r, fig.height=3}
+# make data frame
+df <- tibble(x = x1,
+             y = y1)
+
+# ggplot figure
+p <- ggplot(df, aes(x = x, y = y)) + theme_gar +
+          geom_point(alpha = 0.4, size = 3) +
+          coord_cartesian(xlim = c(-2.5, 2.5), ylim = c(-2.5, 2.5)) +
+    theme(axis.title = element_text(size = 15, colour = "black"),
+          axis.text = element_text(size = 13, colour = "black"),
+          strip.text = element_text(size = 15, face = "bold")) +
+    labs(x = expression(italic("Variable A")), y = expression(italic("Variable B"))) +
+    ggtitle("Group 1")
+pA <- p
+p
+```
+
+For this sample, Spearman's correlation coefficient is `r round(spear(x1, y1)$cor, digits = 2)`.
+
+## Bootstrap
+```{r}
+set.seed(21)
+nboot <- 5000 # number of bootstrap samples
+alpha <- 0.05 # alpha level for confidence interval
+boot.corr1 <- vector(mode = "numeric", length = nboot) # vector of bootstrap correlations
+for(B in 1:nboot){
+  boot.id <- sample(n, size = n, replace=TRUE) # bootstrap pairs of observations
+  boot.corr1[B] <- spear(x1[boot.id], y1[boot.id])$cor
+}
+```
+
+## Bootstrap confidence interval
+```{r}
+corci1 <- quantile(boot.corr1, probs = c(alpha/2, 1-alpha/2))
+```
+
+## P value
+```{r}
+pval <- sum(boot.corr1 < 0)/nboot
+pval <- 2 * min(pval, 1 - pval)
+```
+
+The bootstrap results can be obtained by calling the R command: `corb(x1,y1, corfun = spear, SEED = FALSE)`.
+The argument `corfun` can be changed from `spear` to another correlation function, such as `pbcor` for a percentage bend correlation or `wincor` for a Winsorized correlation. For bootstrap inferences about the non-robust Pearson's correlation, a modified bootstrap technique is required, which is implemented in the function `pcorb`.
+
+## Illustrate bootstrap correlation coefficients
+```{r}
+cor1 <- spear(x1, y1)$cor
+
+df <- as_tibble(with(density(boot.corr1),data.frame(x,y)))
+
+p <- ggplot(df, aes(x = x, y = y)) + theme_gar +
+    geom_vline(xintercept = cor1, colour = "grey", size = 1) +
+    geom_line(size = 2) +
+    labs(x = "Bootstrap Spearman's correlations", y = "Density") +
+    # confidence interval ----------------------
+    geom_segment(x = corci1[1], xend = corci1[2],
+                 y = 0, yend = 0,
+                 lineend = "round", size = 3, colour = "orange") +
+    annotate(geom = "label", x = corci1[1], y = 0.1*max(df$y), size = 7,
+               colour = "white", fill = "orange", fontface = "bold",
+               label = paste("L = ", round(corci1[1], digits = 2))) +
+    annotate(geom = "label", x = corci1[2], y = 0.1*max(df$y), size = 7,
+               colour = "white", fill = "orange", fontface = "bold",
+               label = paste("U = ", round(corci1[2], digits = 2)))
+pB <- p
+p
+```
+
+# Compare correlation coefficients
+
+In this situation, we have 2 groups, for each group we measure variables A and B and then estimate their correlations.
+
+## Make data
+```{r}
+set.seed(777)
+# group 2
+rho <- 0.5 # correlation between variables
+sigma2 <- matrix(c(1, rho, rho, 1), nrow = 2, byrow = TRUE) # covariance matrix
+data <- MASS::mvrnorm(n = n, mu = mu, Sigma = sigma2)
+x2 <- data[,1]
+y2 <- data[,2]
+```
+
+## Illustrate data
+```{r, fig.height=3}
+# make data frame
+df <- tibble(x = x2,
+             y = y2)
+
+# ggplot figure
+p <- ggplot(df, aes(x = x, y = y)) + theme_gar +
+        geom_point(alpha = 0.4, size = 3) +
+        coord_cartesian(xlim = c(-2.5, 2.5), ylim = c(-2.5, 2.5)) +
+        theme(axis.title = element_text(size = 15, colour = "black"),
+              axis.text = element_text(size = 13, colour = "black"),
+              strip.text = element_text(size = 15, face = "bold")) +
+        labs(x = expression(italic("Variable A")), y = expression(italic("Variable B"))) +
+      ggtitle("Group 2")
+pC <- p
+p
+```
+
+For this sample, Spearman's correlation coefficient is `r round(spear(x2, y2)$cor, digits = 2)`.
+
+## Bootstrap
+
+Bootstrap samples are obtained independently in each group. 
+Pairs of observations are sampled with replacement.
+
+```{r}
+set.seed(21)
+nboot <- 5000 # number of bootstrap samples
+alpha <- 0.05 # alpha level for confidence interval
+boot.diff <- vector(mode = "numeric", length = nboot) # vector of bootstrap correlations
+for(B in 1:nboot){
+  boot.id1 <- sample(n, size = n, replace=TRUE) # bootstrap pairs of observations in group 1
+  boot.id2 <- sample(n, size = n, replace=TRUE) # bootstrap pairs of observations in group 2
+  boot.diff[B] <- spear(x1[boot.id1], y1[boot.id1])$cor - spear(x2[boot.id2], y2[boot.id2])$cor
+}
+```
+
+## Bootstrap confidence interval
+```{r}
+diff.ci <- quantile(boot.diff, probs = c(alpha/2, 1-alpha/2)) # [-0.616, 0.104]
+```
+
+## P value
+```{r}
+pval <- sum(boot.diff < 0)/nboot
+pval <- 2 * min(pval, 1 - pval) # 0.1644
+```
+
+The bootstrap results can be obtained by calling the R command: `twocor(x1,y1,x2,y2, corfun = spear)`. To compare two percentage bend correlations, use this command instead: `twocor(x1,y1,x2,y2, corfun = pbcor)`. And to compare two Pearson's correlations: `twopcor(x1,y1,x2,y2, SEED = FALSE)`.
+
+## Bootstrap correlation coefficients
+```{r}
+corr.diff <- spear(x1, y1)$cor - spear(x2, y2)$cor
+
+df <- as_tibble(with(density(boot.diff),data.frame(x,y)))
+
+p <- ggplot(df, aes(x = x, y = y)) + theme_gar +
+    geom_vline(xintercept = corr.diff, colour = "grey", size = 1) +
+    geom_line(size = 2) +
+    labs(x = "Bootstrap Spearman's corr. differences", y = "Density") +
+      # confidence interval ----------------------
+    geom_segment(x = diff.ci[1], xend = diff.ci[2],
+                 y = 0, yend = 0,
+                 lineend = "round", size = 3, colour = "orange") +
+    annotate(geom = "label", x = diff.ci[1], y = 0.1*max(df$y), size = 7,
+               colour = "white", fill = "orange", fontface = "bold",
+               label = paste("L = ", round(diff.ci[1], digits = 2))) +
+    annotate(geom = "label", x = diff.ci[2], y = 0.1*max(df$y), size = 7,
+               colour = "white", fill = "orange", fontface = "bold",
+               label = paste("U = ", round(diff.ci[2], digits = 2)))
+pD <- p
+p
+```
+
+## Summary figure
+```{r, eval=FALSE}
+cowplot::plot_grid(pA, pC, pB, pD,
+                    labels = c("A", "C", "B", "D"),
+                    ncol = 2,
+                    nrow = 2,
+                    label_size = 20, 
+                    hjust = -0.5, 
+                    scale=.95)
+
+# save figure
+ggsave(filename=('./figures/figure_corr.pdf'),width=12,height=10)
+```
+
+
+
+
