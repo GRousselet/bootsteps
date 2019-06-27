@@ -128,17 +128,17 @@ We set alpha to 0.05 to get a 95% confidence interval. That means, if we were to
 
 ```{r}
 alpha <- 0.05
-ci <- quantile(boot.m, probs = c(alpha/2, 1-alpha/2))
+ci <- quantile(boot.m, probs = c(alpha/2, 1-alpha/2)) # [2.33, 4.84]
 ```
 
-There are many ways to estimate quantiles (the R function `quantile()` has 9 options for instance). In Rand Wilcox's functions, the procedure in the next chunk is used. With a large number of bootstrap samples, which quantile method is used should make little difference. 
-```{r}
+There are many ways to estimate quantiles (the R function `quantile()` has 9 options for instance). In Rand Wilcox's functions, the procedure in the next chunk is used, which gives slightly different results. With a large number of bootstrap samples, which quantile method is used will make little difference. 
+```{r, eval = FALSE}
 alpha <- 0.05
 bvec <- sort(boot.m)
 low <- round((alpha/2)*nboot) # 25
 up <- nboot-low # 975
 low <- low+1
-ci <- c(bvec[low],bvec[up]) # [2.17, 5]
+ci <- c(bvec[low],bvec[up]) # [2.33, 4.83]
 ```
 
 #### Graphical representation
@@ -171,7 +171,7 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 nv <- 2 # null value for hypothesis testing
 bvec <- sort(boot.m) # sort bootstrap means in ascending order
 pv <- mean(bvec>nv) +.5*mean(bvec==nv)
-pv <- 2*min(c(pv,1-pv)) # P value = 0.025
+pv <- 2*min(c(pv,1-pv)) # P value = 0.015
 ```
 
 ### Summary figure
@@ -224,6 +224,7 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 
 You can get the bootstrap confidence interval and P value by calling the `onesampb()` function:
 ```{r}
+set.seed(21)
 onesampb(samp,est=mean,alpha=.05,nboot=1000,SEED=FALSE,nv=2)
 ```
 It can be used with any estimator, define with the `est` parameter, for the median (`median`), a trimmed mean (`tm`), a quantile estimate (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
