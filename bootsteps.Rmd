@@ -26,7 +26,7 @@ sessionInfo()
 # Bootstrap implementation
 
 We start by looking at how the bootstrap is implemented in the one-sample case.
-See an interactive demo [here](https://seeing-theory.brown.edu/frequentist-inference/index.html#section2). The core mechanism of the bootstrap is sampling with replacement, which is equivalent to simulating experiments using only the data at hand.
+See an interactive demo [**here**](https://seeing-theory.brown.edu/frequentist-inference/index.html#section2). The core mechanism of the bootstrap is sampling with replacement, which is equivalent to simulating experiments using only the data at hand.
 
 ## Sampling with replacement
 
@@ -134,10 +134,12 @@ ci <- quantile(boot.m, probs = c(alpha/2, 1-alpha/2)) # [2.33, 4.84]
 There are many ways to estimate quantiles (the R function `quantile()` has 9 options for instance). In Rand Wilcox's functions, the procedure in the next chunk is used, which gives slightly different results. With a large number of bootstrap samples, which quantile method is used will make little difference. 
 ```{r, eval = FALSE}
 alpha <- 0.05
-bvec <- sort(boot.m)
+bvec <- sort(boot.m) # sort bootstrap means in ascending order
+# define quantiles
 low <- round((alpha/2)*nboot) # 25
 up <- nboot-low # 975
 low <- low+1
+# get confidence interval
 ci <- c(bvec[low],bvec[up]) # [2.33, 4.83]
 ```
 
@@ -169,8 +171,7 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 ### P value
 ```{r}
 nv <- 2 # null value for hypothesis testing
-bvec <- sort(boot.m) # sort bootstrap means in ascending order
-pv <- mean(bvec>nv) +.5*mean(bvec==nv)
+pv <- mean(boot.m>nv) +.5*mean(boot.m==nv)
 pv <- 2*min(c(pv,1-pv)) # P value = 0.015
 ```
 
@@ -227,7 +228,7 @@ You can get the bootstrap confidence interval and P value by calling the `onesam
 set.seed(21)
 onesampb(samp,est=mean,alpha=.05,nboot=1000,SEED=FALSE,nv=2)
 ```
-It can be used with any estimator, define with the `est` parameter, for the median (`median`), a trimmed mean (`tm`), a quantile estimate (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
+It can be used with any estimator, define with the `est` argument, for the median (`median`), a [**trimmed mean**](https://garstats.wordpress.com/2017/11/28/trimmed-means/) (`tm`), a [**quantile estimate**](https://garstats.wordpress.com/2016/06/09/the-harrell-davis-quantile-estimator/) (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
 
 Set `SEED` to `TRUE` to get the same results every time you use the function. Set it to `FALSE` to use difference random bootstrap samples, so the function returns different results every time you use it.
 `nv` is the null value used in computing the *P* value.
@@ -264,7 +265,7 @@ for(S in 1:nsim){ # simulation loop
   ci.coverage[S,3] <- ci[1]<pop.tm && ci[2]>pop.tm # CI includes population value?
 }
 
-apply(ci.coverage, 2, mean) # average across simulations
+apply(ci.coverage, 2, mean) # average across simulations for each method
 
 # save simulation results to load in next chunk
 save(ci.coverage, file = "./data/ci.coverage.RData")
@@ -277,6 +278,8 @@ out <- apply(ci.coverage, 2, mean) # average across simulations
 ```
 
 Coverage is `r round(out[1]*100, digits = 1)`% for the t-test, `r round(out[2]*100, digits = 1)`% for the bootstrap + mean, and `r round(out[3]*100, digits = 1)`% for the bootstrap + 20% trimmed mean. This means that when sampling from a skewed distribution such as the lognormal distribution, coverage can be very different from the expected one (here 95% coverage).
+
+Want to see more examples of simulations + code? Head [**here**](https://garstats.wordpress.com/2017/11/28/your-alpha-is-probably-not-0-05/) for type I error simulations, and [**here**](https://garstats.wordpress.com/2017/11/28/your-power-is-lower-than-you-think/) for power simulations.
 
 # Compare 2 groups: difference in location
 
@@ -495,6 +498,8 @@ set.seed(1)
 pb2gen(g1, g2, alpha=0.05, nboot=1000, est=mad, SEED=FALSE)
 ```
 
+Instead of looking separately at group differences in central tendency and spread, you can have a more detailed look at how distributions differ by using a [**shift function**](https://garstats.wordpress.com/2016/07/12/shift-function/), which is available in the [**rogme**](https://github.com/GRousselet/rogme) R package.
+
 # Bootstrap correlation coefficient
 
 In this example we sample from 2 weakly correlated variables. Changing the random seed or commenting out the line `set.seed(21)` will give different results. You can also change the population correlation by changing `rho`.
@@ -583,6 +588,9 @@ p <- ggplot(df, aes(x = x, y = y)) + theme_gar +
 pB <- p
 p
 ```
+
+For simulations on the (large) sample sizes needed to precisely estimate correlation analyses, see this [**blog post**](https://garstats.wordpress.com/2018/06/01/smallncorr/). To see why conditioning correlation results on P values can lead to a literature full of false positives, see this [**blog post**](https://garstats.wordpress.com/2018/06/22/corrcondpval/). Finally,  simulations of statistical power for correlation analyses are available [**here**](https://garstats.wordpress.com/2018/06/29/corrpower/).
+
 
 # Compare correlation coefficients
 
@@ -688,6 +696,7 @@ cowplot::plot_grid(pA, pC, pB, pD,
 ggsave(filename=('./figures/figure_corr.pdf'),width=12,height=10)
 ```
 
+Simulations of false positives and power for correlation comparisons are reported in this [**blog post**](https://garstats.wordpress.com/2019/06/17/compindcorr/). Bottom-line: the Fisher's r-to-z transform is not robust, and very large sample sizes are required to detect differences between correlation coefficients.
 
 
 
