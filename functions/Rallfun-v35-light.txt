@@ -1,0 +1,454 @@
+#License: USC-RL v1.0
+#The Software is made available for academic or non-commercial purposes only. The license is for
+#a copy of the program for an unlimited term. Individuals requesting a license for commercial use must pay for a commercial license.
+# USC Stevens Institute for Innovation University of Southern California
+#1150 S. Olive Street, Suite 2300
+#Los Angeles, CA 90115, USA
+#ATTN: Accounting
+#DISCLAIMER.  USC MAKES NO EXPRESS OR IMPLIED WARRANTIES, EITHER IN FACT OR BY
+#OPERATION OF LAW, BY STATUTE OR OTHERWISE, AND USC SPECIFICALLY AND EXPRESSLY
+#DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A
+#PARTICULAR PURPOSE, VALIDITY OF THE SOFTWARE OR ANY OTHER INTELLECTUAL PROPERTY
+#RIGHTS OR NON-INFRINGEMENT OF THE INTELLECTUAL PROPERTY OR OTHER RIGHTS OF ANY
+#THIRD PARTY. SOFTWARE IS MADE AVAILABLE AS-IS.
+#LIMITATION OF LIABILITY.  TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL
+#USC BE LIABLE TO ANY USER OF THIS CODE FOR ANY INCIDENTAL, CONSEQUENTIAL, EXEMPLARY
+#OR PUNITIVE DAMAGES OF ANY KIND, LOST GOODWILL, LOST PROFITS, LOST BUSINESS AND/OR
+#ANY INDIRECT ECONOMIC DAMAGES WHATSOEVER, REGARDLESS OF WHETHER SUCH DAMAGES
+#ARISE FROM CLAIMS BASED UPON CONTRACT, NEGLIGENCE, TORT (INCLUDING STRICT LIABILITY
+#OR OTHER LEGAL THEORY), A BREACH OF ANY WARRANTY OR TERM OF THIS AGREEMENT, AND
+#REGARDLESS OF WHETHER USC WAS ADVISED OR HAD REASON TO KNOW OF THE POSSIBILITY OF
+#INCURRING SUCH DAMAGES IN ADVANCE.
+#For commercial license pricing and annual commercial update and support pricing, please
+#contact:
+#<Licensing Associate Name>
+#USC Stevens Institute for Innovation
+#University of Southern California
+#1150 S. Olive Street, Suite 2300
+#Los Angeles, CA 90015, USA
+#Tel: <Licensing Associate phone number>
+#Fax: +1 213-821-5001
+#Email:
+#<Licensing Associate Email>
+#and cc to:
+#accounting@stevens.usc.edu
+
+
+
+#  Last update:
+#  May, 2018
+
+onesampb<-function(x,est=onestep,alpha=.05,nboot=2000,nv=0,null.value=NULL,...){
+#
+#   Compute a bootstrap, .95 confidence interval for the
+#   measure of location corresponding to the argument est.
+#   By default, a one-step
+#   M-estimator of location based on Huber's Psi is used.
+#   The default number of bootstrap samples is nboot=500
+#
+#    nv=null value when  computing a p-value
+#
+if(!is.null(null.value))nv=null.value
+x=elimna(x)
+data<-matrix(sample(x,size=length(x)*nboot,replace=TRUE),nrow=nboot)
+bvec<-apply(data,1,est,...)
+bvec<-sort(bvec)
+low<-round((alpha/2)*nboot)
+up<-nboot-low
+low<-low+1
+pv=mean(bvec>nv)+.5*mean(bvec==nv)
+pv=2*min(c(pv,1-pv))
+estimate=est(x,...)
+list(ci=c(bvec[low],bvec[up]),n=length(x),estimate=estimate,p.value=pv)
+}
+
+elimna<-function(m){
+#
+# remove any rows of data having missing values
+#
+DONE=FALSE
+if(is.list(m) && is.matrix(m)){
+z=pool.a.list(m)
+m=matrix(z,ncol=ncol(m))
+DONE=TRUE
+}
+if(!DONE){
+if(is.list(m) && is.matrix(m[[1]])){
+for(j in 1:length(m))m[[j]]=na.omit(m[[j]])
+e=m
+DONE=TRUE
+}}
+if(!DONE){
+if(is.list(m) && is.null(dim(m))){ #!is.matrix(m))
+for(j in 1:length(m))m[[j]]=as.vector(na.omit(m[[j]]))
+e=m
+DONE=TRUE
+}}
+if(!DONE){
+#if(!is.list(m)){
+#if(is.null(dim(m)))
+m<-as.matrix(m)
+ikeep<-c(1:nrow(m))
+for(i in 1:nrow(m))if(sum(is.na(m[i,])>=1))ikeep[i]<-0
+e<-m[ikeep[ikeep>=1],]
+#}
+}
+e
+}
+
+onestep<-function(x,bend=1.28,na.rm=FALSE,MED=TRUE){
+#
+#  Compute one-step M-estimator of location using Huber's Psi.
+#  The default bending constant is 1.28
+#
+#  MED=TRUE: initial estimate is the median
+#  Otherwise use modified one-step M-estimator
+#
+if(na.rm)x<-x[!is.na(x)]
+if(MED)init.loc=median(x)
+if(!MED)init.loc=mom(x,bend=bend)
+y<-(x-init.loc)/mad(x)  #mad in splus is madn in the book.
+A<-sum(hpsi(y,bend))
+B<-length(x[abs(y)<=bend])
+onestep<-median(x)+mad(x)*A/B
+onestep
+}
+
+hpsi<-function(x,bend=1.28){
+#
+#   Evaluate Huber`s Psi function for each value in the vector x
+#   The bending constant defaults to 1.28.
+#
+hpsi<-ifelse(abs(x)<=bend,x,bend*sign(x))
+hpsi
+}
+
+mom<-function(x,bend=2.24,na.rm=TRUE){
+#
+#  Compute MOM-estimator of location.
+#  The default bending constant is 2.24
+#
+if(na.rm)x<-x[!is.na(x)] #Remove missing values
+flag1<-(x>median(x)+bend*mad(x))
+flag2<-(x<median(x)-bend*mad(x))
+flag<-rep(T,length(x))
+flag[flag1]<-F
+flag[flag2]<-F
+mom<-mean(x[flag])
+mom
+}
+
+hd<-function(x,q=.5,na.rm=TRUE,STAND=NULL){
+#
+#  Compute the Harrell-Davis estimate of the qth quantile
+#
+#  The vector x contains the data,
+#  and the desired quantile is q
+#  The default value for q is .5.
+#
+if(na.rm)x=elimna(x)
+n<-length(x)
+m1<-(n+1)*q
+m2<-(n+1)*(1-q)
+vec<-seq(along=x)
+w<-pbeta(vec/n,m1,m2)-pbeta((vec-1)/n,m1,m2)  # W sub i values
+y<-sort(x)
+hd<-sum(w*y)
+hd
+}
+
+pb2gen<-function(x,y,alpha=.05,nboot=2000,est=onestep,...){
+#
+#   Compute a bootstrap confidence interval for the
+#   the difference between any two parameters corresponding to
+#   independent groups.
+#   By default, M-estimators are compared.
+#   Setting est=mean, for example, will result in a percentile
+#   bootstrap confidence interval for the difference between means.
+#   Setting est=onestep will compare M-estimators of location.
+#   The default number of bootstrap samples is nboot=2000
+#
+x<-x[!is.na(x)] # Remove any missing values in x
+y<-y[!is.na(y)] # Remove any missing values in y
+datax<-matrix(sample(x,size=length(x)*nboot,replace=TRUE),nrow=nboot)
+datay<-matrix(sample(y,size=length(y)*nboot,replace=TRUE),nrow=nboot)
+bvecx<-apply(datax,1,est,...)
+bvecy<-apply(datay,1,est,...)
+bvec<-sort(bvecx-bvecy)
+low<-round((alpha/2)*nboot)+1
+up<-nboot-low
+temp<-sum(bvec<0)/nboot+sum(bvec==0)/(2*nboot)
+sig.level<-2*(min(temp,1-temp))
+se<-var(bvec)
+list(est.1=est(x,...),est.2=est(y,...),est.dif=est(x,...)-est(y,...),ci=c(bvec[low],bvec[up]),p.value=sig.level,sq.se=se,n1=length(x),n2=length(y))
+}
+
+twopcor<-function(x1,y1,x2,y2){
+#
+#   Compute a .95 confidence interval for
+#   the difference between two Pearson
+#   correlations corresponding to two independent
+#   goups.
+#
+#   This function uses an adjusted percentile bootstrap method that
+#   gives good results when the error term is heteroscedastic.
+#
+#   WARNING: If the number of boostrap samples is altered, it is
+#   unknown how to adjust the confidence interval when n1+n2 < 250.
+#
+nboot<-599  #Number of bootstrap samples
+X<-elimna(cbind(x1,y1))
+x1<-X[,1]
+y1<-X[,2]
+X<-elimna(cbind(x2,y2))
+x2<-X[,1]
+y2<-X[,2]
+print("Taking bootstrap samples; please wait")
+data1<-matrix(sample(length(y1),size=length(y1)*nboot,replace=TRUE),nrow=nboot)
+bvec1<-apply(data1,1,pcorbsub,x1,y1) # A 1 by nboot matrix.
+data2<-matrix(sample(length(y2),size=length(y2)*nboot,replace=TRUE),nrow=nboot)
+bvec2<-apply(data2,1,pcorbsub,x2,y2) # A 1 by nboot matrix.
+bvec<-bvec1-bvec2
+ilow<-15
+ihi<-584
+if(length(y1)+length(y2) < 250){
+ilow<-14
+ihi<-585
+}
+if(length(y1)+length(y2) < 180){
+ilow<-11
+ihi<-588
+}
+if(length(y1)+length(y2) < 80){
+ilow<-8
+ihi<-592
+}
+if(length(y1)+length(y2) < 40){
+ilow<-7
+ihi<-593
+}
+bsort<-sort(bvec)
+r1<-cor(x1,y1)
+r2<-cor(x2,y2)
+ci<-c(bsort[ilow],bsort[ihi])
+list(r1=r1,r2=r2,ci=ci)
+}
+
+pcorbsub<-function(isub, x, y)
+{
+        #
+        #  Compute Pearson's correlation using x[isub] and y[isub]
+        #  isub is a vector of length n,
+        #  a bootstrap sample from the sequence of integers
+        #  1, 2, 3, ..., n
+        #
+        pcorbsub<-cor(x[isub],y[isub])
+        pcorbsub
+}
+
+twocor<-function(x1,y1,x2,y2,corfun=pbcor,nboot=599,alpha=.05,...){
+#
+#  Compute a .95 confidence interval for the
+#  difference between two correlation coefficients
+#  corresponding to two independent groups.
+#
+#   the function corfun is any R function that returns a
+#   correlation coefficient in corfun$cor. The functions pbcor and
+#   wincor follow this convention.
+#
+#   For Pearson's correlation, use
+#   the function twopcor instead.
+#
+#   The default number of bootstrap samples is nboot=599
+#
+data1<-matrix(sample(length(y1),size=length(y1)*nboot,replace=TRUE),nrow=nboot)
+bvec1<-apply(data1,1,corbsub,x1,y1,corfun,...) # A 1 by nboot matrix.
+data2<-matrix(sample(length(y2),size=length(y2)*nboot,replace=TRUE),nrow=nboot)
+bvec2<-apply(data2,1,corbsub,x2,y2,corfun,...) # A 1 by nboot matrix.
+bvec<-bvec1-bvec2
+bsort<-sort(bvec)
+term<-alpha/2
+ilow<-round((alpha/2) * nboot)
+ihi<-nboot - ilow
+ilow<-ilow+1
+corci<-1
+corci[1]<-bsort[ilow]
+corci[2]<-bsort[ihi]
+pv<-(sum(bvec<0)+.5*sum(bvec==0))/nboot
+pv=2*min(c(pv,1-pv))
+r1<-corfun(x1,y1)$cor
+r2<-corfun(x2,y2)$cor
+reject<-"NO"
+if(corci[1]>0 || corci[2]<0)reject="YES"
+list(r1=r1,r2=r2,ci.dif=corci,p.value=pv)
+}
+
+pbcor<-function(x,y,beta=.2){
+#   Compute the percentage bend correlation between x and y.
+#
+#   beta is the bending constant for omega sub N.
+#
+if(length(x)!=length(y))stop("The vectors do not have equal lengths")
+m1=cbind(x,y)
+m1<-elimna(m1)
+nval=nrow(m1)
+x<-m1[,1]
+y<-m1[,2]
+#  Have eliminated missing values
+temp<-sort(abs(x-median(x)))
+omhatx<-temp[floor((1-beta)*length(x))]
+temp<-sort(abs(y-median(y)))
+omhaty<-temp[floor((1-beta)*length(y))]
+a<-(x-pbos(x,beta))/omhatx
+b<-(y-pbos(y,beta))/omhaty
+a<-ifelse(a<=-1,-1,a)
+a<-ifelse(a>=1,1,a)
+b<-ifelse(b<=-1,-1,b)
+b<-ifelse(b>=1,1,b)
+pbcor<-sum(a*b)/sqrt(sum(a^2)*sum(b^2))
+test<-pbcor*sqrt((length(x) - 2)/(1 - pbcor^2))
+sig<-2*(1 - pt(abs(test),length(x)-2))
+list(cor=pbcor,test=test,p.value=sig,n=nval)
+}
+
+wincor<-function(x,y=NULL,tr=.2){
+#   Compute the Winsorized correlation between x and y.
+#
+#   tr is the amount of Winsorization
+#   This function also returns the Winsorized covariance
+#
+#    Pairwise deletion of missing values is performed.
+#
+#   x is a vector, or it can be a matrix with two columns when y=NULL
+#
+if(is.null(y[1])){
+if(ncol(x)>2)stop('Two variables only; for more than two use winall')
+y=x[,2]
+x=x[,1]
+}
+sig<-NA
+if(length(x)!=length(y))stop("Lengths of vectors are not equal")
+m1=cbind(x,y)
+m1<-elimna(m1)
+nval=nrow(m1)
+x<-m1[,1]
+y<-m1[,2]
+g<-floor(tr*length(x))
+xvec<-winval(x,tr)
+yvec<-winval(y,tr)
+wcor<-cor(xvec,yvec)
+wcov<-var(xvec,yvec)
+if(sum(x==y)!=length(x)){
+test<-wcor*sqrt((length(x)-2)/(1.-wcor^2))
+sig<-2*(1-pt(abs(test),length(x)-2*g-2))
+}
+list(cor=wcor,cov=wcov,p.value=sig,n=nval)
+}
+
+spear<-function(x,y=NULL){
+# Compute Spearman's rho
+#
+if(!is.null(y[1])){
+m=elimna(cbind(x,y))
+n=nrow(m)
+x=m[,1]
+y=m[,2]
+corv<-cor(rank(x),rank(y))
+}
+if(is.null(y[1])){
+x=elimna(x)
+n=nrow(x)
+m<-apply(x,2,rank)
+corv<-cor(m)
+}
+test <-corv * sqrt((n - 2)/(1. - corv^2))
+sig <- 2 * (1 - pt(abs(test), length(x) - 2))
+if(is.null(y[1]))sig<-matrix(sig,ncol=sqrt(length(sig)))
+list(cor=corv,p.value = sig)
+}
+
+corb<-function(x,y,corfun=pbcor,nboot=599,alpha=.05,plotit=FALSE,xlab='X',ylab='Y',...){
+#
+#   Compute a 1-alpha confidence interval for a correlation.
+#   The default correlation is the percentage bend.
+#
+#   The function corfun is any R function that returns a
+#   correlation coefficient in corfun$cor. The functions pbcor and
+#   wincor follow this convention.
+#
+#   When using Pearson's correlation, and when n<250, use
+#   lsfitci instead.
+#
+#   The default number of bootstrap samples is nboot=599
+#
+m1=cbind(x,y)
+m1<-elimna(m1)  # Eliminate rows with missing values
+nval=nrow(m1)
+x<-m1[,1]
+y<-m1[,2]
+est<-corfun(x,y,...)$cor
+data<-matrix(sample(length(y),size=length(y)*nboot,replace=TRUE),nrow=nboot)
+bvec<-apply(data,1,corbsub,x,y,corfun,...) # A 1 by nboot matrix.
+ihi<-floor((1-alpha/2)*nboot+.5)
+ilow<-floor((alpha/2)*nboot+.5)
+bsort<-sort(bvec)
+corci<-1
+corci[1]<-bsort[ilow]
+corci[2]<-bsort[ihi]
+phat <- sum(bvec < 0)/nboot
+sig <- 2 * min(phat, 1 - phat)
+if(plotit)outpro(cbind(x,y),xlab=xlab,ylab=ylab,plotit=TRUE)
+list(cor.ci=corci,p.value=sig,cor.est=est)
+}
+
+corbsub<-function(isub,x,y,corfun,...){
+#
+#  Compute correlation for x[isub] and y[isub]
+#  isub is a vector of length n,
+#  a bootstrap sample from the sequence of integers
+#  1, 2, 3, ..., n
+#
+#  This function is used by other functions when computing
+#  bootstrap estimates.
+#
+#  corfun is some correlation function already stored in R
+#
+corbsub<-corfun(x[isub],y[isub],...)$cor
+corbsub
+}
+
+pcorb<-function(x,y){
+#   Compute a .95 confidence interval for Pearson's correlation coefficient.
+#
+#   This function uses an adjusted percentile bootstrap method that
+#   gives good results when the error term is heteroscedastic.
+#
+nboot<-599  #Number of bootstrap samples
+xy<-elimna(cbind(x,y))
+x<-xy[,1]
+y<-xy[,2]
+data<-matrix(sample(length(y),size=length(y)*nboot,replace=TRUE),nrow=nboot)
+bvec<-apply(data,1,pcorbsub,x,y) # A 1 by nboot matrix.
+ilow<-15
+ihi<-584
+if(length(y) < 250){
+ilow<-14
+ihi<-585
+}
+if(length(y) < 180){
+ilow<-11
+ihi<-588
+}
+if(length(y) < 80){
+ilow<-8
+ihi<-592
+}
+if(length(y) < 40){
+ilow<-7
+ihi<-593
+}
+bsort<-sort(bvec)
+r<-cor(x,y)
+ci<-c(bsort[ilow],bsort[ihi])
+list(r=r,ci=ci)
+}

@@ -1,10 +1,12 @@
 Reproducibility package for the article:
 
-**The percentile bootstrap: a teaser with step-by-step instructions in R**
+**The percentile bootstrap: a primer with step-by-step instructions in R**
 Rousselet G.A., Pernet C.R., Wilcox R.R.
 *submitted*
 
 [[GitHub repository](https://github.com/GRousselet/bootsteps)]
+
+[[OSF repository](https://osf.io/dvuze/)]
 
 This tutorial provides a very short and lightweight introduction to the percentile bootstrap. For a more substantial tutorial, see [here](https://osf.io/8b4t5/).
 
@@ -15,18 +17,18 @@ The code is released under the [MIT license](https://opensource.org/licenses/MIT
 The figures are released under the [CC-BY 4.0 license](https://creativecommons.org/licenses/by/4.0/legalcode). Copyright 2019, Rousselet, Pernet & Wilcox.
 
 # Content
-|folder|description|
-|-----|-----|
-|`bootsteps.Rmd`|RMarkdown file to create figures and run the simulation|
-|`bootsteps.pdf`|pdf versions of the code, with embedded figures|
-|`data`|simulation results needed to run the code|
-|`figures`|all the figures used in the article, in pdf format|
-|`functions`|extra R functions defined in text files|
+|folder|description|location|
+|-----|-----|-----|
+|`bootsteps.Rmd`|RMarkdown file to create figures and run the simulation|OSF + GitHub|
+|`bootsteps.pdf`|pdf versions of the code, with embedded figures|OSF|
+|`data`|simulation results needed to run the code|OSF + GitHub|
+|`figures`|all the figures used in the article, in pdf format|OSF|
+|`functions`|extra R functions defined in text files|OSF + GitHub|
 
 # R packages needed
 If you want to run the code in RStudio and reproduce the figures, you will need to install three packages, which you can do by typing this in the console:
 
-`install.packages(c("ggplot2", "tibble", "cowplot"))`
+`install.packages(c("ggplot2", "tibble", "boot", "simpleboot", "SimJoint"))`
 
 Or you can navigate in the GUI to Tools > Install Packages...
 
@@ -41,14 +43,29 @@ The file [theme_gar.txt](https://github.com/GRousselet/articles/blob/master/boot
 # Extra resources
 
 ## R packages for bootstrap inferences
-- [`boot`](https://www.statmethods.net/advstats/bootstrapping.html)
-- [`resample`](https://cran.r-project.org/web/packages/resample/index.html)
-- [`bootstrap`](https://cran.r-project.org/web/packages/bootstrap/index.html)
-- [`WRS2`](https://cran.r-project.org/web/packages/WRS2/index.html)
+
+For packages not focused on bootstrap methods, example functions are provided in brackets. The full references are available in the article.
+
+- [`bootstrap`](https://cran.r-project.org/web/packages/bootstrap/) (Efron & Tibshirani, 1994; Tibshirani & Leisch, 2019)
+
+- [`boot`](https://cran.r-project.org/web/packages/boot/) (Canty & Ripley, 2017; Davison & Hinkley, 1997)
+
+- [`simpleboot`](https://cran.r-project.org/web/packages/simpleboot/) (Peng, 2019)
+
+- [`WRS2`](https://cran.r-project.org/web/packages/WRS2/) (Mair & Wilcox, 2019)
+
+- [`resample`](https://cran.r-project.org/web/packages/resample/) (Hesterberg, 2015a)
+
+- [`car` (`Boot`)](https://cran.r-project.org/web/packages/car/) (Fox & Weisberg, 2019)
+
+- [`nlstools` (`nlsBoot`)](https://cran.r-project.org/web/packages/nlstools/) (Baty et al., 2015)
+
+- [`dabestr`](https://cran.r-project.org/web/packages/dabestr/) (Ho, Tumkaya, Aryal, Choi, & Claridge-Chang, 2019)
+
+- [`rogme`](https://github.com/GRousselet/rogme) (Rousselet, Pernet, & Wilcox, 2017)
 
 ## Interactive demo
 [Frequentist inference: confidence interval & bootstrap](https://seeing-theory.brown.edu/frequentist-inference/index.html#section2)
-
 
 ## Books
 Suggested books on bootstrap methods, robust statistics and simulations.
