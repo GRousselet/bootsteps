@@ -10,15 +10,18 @@ output:
     toc_depth: 2
 ---
 
+\newpage
+
 Companion R Notebook to the article:  
 **The percentile bootstrap: a primer with step-by-step instructions in R**  
 Rousselet G.A., Pernet C.R., Wilcox R.R.  
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-You can execute each chunk by clicking the *Run* button within the chunk (green arrow) or by placing your cursor inside it and pressing *Cmd+Shift+Enter* on a mac, *Ctrl+Shift+Enter* on a pc. Here is a [full list of shortcuts](https://support.rstudio.com/hc/en-us/articles/200711853-Keyboard-Shortcuts). 
+This is an [**R Markdown**](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-For a thorough introduction to R we recommend the free online book [R for Data Science](https://r4ds.had.co.nz) (Grolemund & Wickham, 2017). See many other great resources [here](http://cmdlinetips.com/2018/01/free-online-resources-books-to-learn-r-and-data-science/).
+You can execute each chunk by clicking the *Run* button within the chunk (green arrow) or by placing your cursor inside it and pressing *Cmd+Shift+Enter* on a mac, *Ctrl+Shift+Enter* on a pc. Here is a [**full list of shortcuts**](https://support.rstudio.com/hc/en-us/articles/200711853-Keyboard-Shortcuts). 
+
+For a thorough introduction to *R* we recommend the free online book [**R for Data Science**](https://r4ds.had.co.nz) (Grolemund & Wickham, 2017). See many other great resources [**here**](http://cmdlinetips.com/2018/01/free-online-resources-books-to-learn-r-and-data-science/).
 
 # Dependencies
 ```{r message=FALSE, warning=FALSE}
@@ -28,7 +31,7 @@ library(ggplot2) # to plot data
 source("./functions/theme_gar.txt") # ggplot2 formatting the way I like it
 
 # Rand Wilcox's functions from the Robust Estimation and Hypothesis Testing book
-source("./functions/Rallfun-v35-light.txt") # simplified version to run the examples in this notebook only.
+source("./functions/Rallfun-v35-light.txt") # simplified version to run notebook examples
 # source("./functions/Rallfun-v35.txt") # full version
 
 library(boot) # package dedicated to bootstrap methods
@@ -37,7 +40,13 @@ library(simpleboot) # package with wrapper functions to boot, making user's life
 library(SimJoint) # SJspearman works much better than mc2d::cornode
 ```
 
-The previous chunk loads a simplified version of Rand Wilcox's collection of functions. To get all the functions described in his Robust Estimation and Hypothesis Testing book, do: `source("./functions/Rallfun-v35.txt")`. The latest version of `Rallfun` is available [online](http://dornsife.usc.edu/labs/rwilcox/software/). **If you use functions from the full file (`Rallfun-v35.txt`) or a more recent file, ensure to set the `SEED` argument to `FALSE`. For instance in `onesampb()` called later in this notebook: onesampb(x,est=median,alpha=.05,nboot=2000,SEED=FALSE). If `SEED=TRUE`, the function will always return the same bootstrap results -- see below for explanation about setting the seed of random number generators in *R*.**
+The previous chunk loads a simplified version of Rand Wilcox's collection of functions. To get all the functions described in his Robust Estimation and Hypothesis Testing book, do:  
+`source("./functions/Rallfun-v35.txt")`.  
+The latest version of `Rallfun` is available on Rand Wilcox's [**website**](http://dornsife.usc.edu/labs/rwilcox/software/). 
+
+**If you use functions from the full file (`Rallfun-v35.txt`) or a more recent file, remember to set the `SEED` argument to `FALSE`.** For instance in `onesampb()` called later in this notebook:  
+onesampb(x,est=median,alpha=.05,nboot=2000,SEED=FALSE).  
+If `SEED=TRUE`, the function will always return the same bootstrap results -- see below for explanation about setting the seed of random number generators in *R*.
 
 ```{r}
 sessionInfo()
@@ -64,7 +73,7 @@ set.seed(21) # for reproducible results
 sample(samp, size = n, replace = TRUE) # sample with replacement
 ```
 
-The function `set.seed()` is used to determine the starting point of the random number generator used by the `sample()` function. The number 21 has no particular meaning, it just ensures that different users of the same lines of code will get the same pseudo-random outcome. Typing `set.seed(666)` or some other value will give a different result. We recommend to always set the seed to some value when using bootstrap functions or more generally code involving random number generation, so the results can be reproduced or compared across methods. However, the reproducibility of the random number generation depends on the version R. For instance, the first version of this R Notebook was created using R 3.5, but a reviewer alerted us to a change in the way random numbers are generated in [R 3.6](https://blog.revolutionanalytics.com/2019/05/whats-new-in-r-360.html). So the current version of the notebook is based on R 3.6. Future readers are therefore warned that there could be discrepancies between fresh outputs from the notebook and the values in the rigid companion article.
+The function `set.seed()` is used to determine the starting point of the random number generator used by the `sample()` function. The number 21 has no particular meaning, it just ensures that different users of the same lines of code will get the same pseudo-random outcome. Typing `set.seed(666)` or some other value will give a different result. We recommend to always set the seed to some value when using bootstrap functions or more generally code involving random number generation, so the results can be reproduced or compared across methods. However, the reproducibility of the random number generation depends on the version of *R*. For instance, the first version of this R Notebook was created using *R 3.5*, but a reviewer alerted us to a change in the way random numbers are generated in [**R 3.6**](https://blog.revolutionanalytics.com/2019/05/whats-new-in-r-360.html). So the current version of the notebook is based on *R 3.6*. Future readers are therefore warned that there could be discrepancies between fresh outputs from the notebook and the values in the pdf version of the notebook pr in the companion article.
 
 We also recommend to run the same bootstrap analyses a few times, to check that the results are consistent across multiple random samples. This can be done by commenting out (adding `#` at the start of the line) or deleting the `set.seed` call, and then running the same chunk several times. If the results differ substantially across repeated calls to the same bootstrap code or function, the number of bootstrap samples should probably be increased -- see discussion in Hesterberg (2015).
 
@@ -89,7 +98,7 @@ As is apparent from these 3 examples, in a bootstrap sample, some observations a
 
 ## Bootstrap mean estimates
 
-How do we use the bootstrap samples? It might be tempting to use them to make inferences about the mean of our sample (as we will see below this is a bad idea). With the bootstrap, we ask: what are the plausible sample means compatible with our data, without making any parametric assumptions? To answer this question, we take bootstrap samples by sampling with replacement from the data. For each bootstrap sample, we compute the mean. This can be done using a `for` loop. Although `for` loops can be avoided, they are very practical in many situations and they make the code easier to read. 
+How do we use the bootstrap samples? It might be tempting to use them to make inferences about the mean of our sample (as we will see below this is a bad idea). With the bootstrap, we ask: what are the plausible population means compatible with our data, without making any parametric assumptions? To answer this question, we take bootstrap samples by sampling with replacement from the data. For each bootstrap sample, we compute the mean. This can be done using a `for` loop. Although `for` loops can be avoided, they are very practical in many situations and they make the code easier to read. 
 
 ### Loop
 ```{r}
@@ -105,7 +114,7 @@ for(B in 1:nboot){
 }
 ```
 
-Also, note that in *R*, like in *Python*, indexing is done using square brackets (e.g. boot.m[B]), whereas some other languages use parentheses (*Matlab* for instance).
+In *R*, like in *Python*, indexing is done using square brackets (e.g. boot.m[B]), whereas some other languages use parentheses (*Matlab* for instance).
 
 ### Same in one line of code
 ```{r}
@@ -121,14 +130,14 @@ n.show <- 50 # show only n.show first bootstrap means
 df <- tibble(x = 1:n.show, y = boot.m[1:n.show])
 ggplot(df, aes(x = x, y = y)) + theme_gar +
   geom_hline(yintercept = mean(samp), colour = "grey", size = 1) +
-  geom_segment(aes(x=x, xend=x, y=0, yend=y)) + # comment to make a scatterplot instead of a lollipop chart
+  # comment next line to make a scatterplot instead of a lollipop chart:
+  geom_segment(aes(x=x, xend=x, y=0, yend=y)) + 
   geom_point(size=2.5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) +
   scale_x_continuous(breaks = c(1, seq(10, 100, 10))) +
   scale_y_continuous(breaks = seq(1, 6, 1)) +
   coord_cartesian(ylim = c(0, 6)) +
   labs(x = "Bootstrap samples", y = "Bootstrap means")
 # ggsave(filename=('./figures/figure_50bootsamp.pdf'),width=7,height=5)
-# ggsave(filename=('./figures/figure_50bootsamp.png'),width=7,height=5)
 ```
 
 Because we've bootstrapped a small sample of integer values, the bootstrap means only take a small number of `r length(unique(boot.m))` unique values.
@@ -146,14 +155,13 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
   coord_cartesian(xlim = c(0, 6)) +
   labs(x = "Bootstrap means", y = "Density")
 # ggsave(filename=('./figures/figure_bootdens.pdf'),width=7,height=5)
-# ggsave(filename=('./figures/figure_bootdens.png'),width=7,height=5)
 ```
 
-### Confidence interval
+## Confidence interval
 
-#### Formula
+### Formula
 
-We set alpha to 0.05 to get a 95% confidence interval. That means, if we were to repeat the same experiment many times, and for each experiment we compute a confidence interval, in the long-run, 95% of these intervals should contain the population value. This means that for a given experiment, the confidence interval does or does not contain the population we're trying to estimate. Also, the actual coverage depends on the method used to build the confidence interval and the quantity we're trying to estimate. In particular, it is well-known that the bootstrap should be used to build confidence intervals for the mean, because the coverage can be far from the expected value. For instance, when sampling from skewed distributions, the coverage can be much lower than the expected 95%. See next main section on how to use a simulation to check coverage.
+We set alpha to 0.05 to get a 95% confidence interval. That means, if we were to repeat the same experiment many times, and for each experiment we compute a confidence interval, in the long-run, 95% of these intervals should contain the population value. This means that for a given experiment, the confidence interval does or does not contain the population we're trying to estimate. Also, the actual coverage depends on the method used to build the confidence interval and the quantity we're trying to estimate. In particular, it is well-known that the bootstrap should not be used to build confidence intervals for the mean, because the coverage can be far from the expected value. For instance, when sampling from skewed distributions, the coverage can be much lower than the expected 95%. See next main section on how to use a simulation to check coverage.
 
 ```{r}
 alpha <- 0.05
@@ -161,7 +169,9 @@ ci <- quantile(boot.m, probs = c(alpha/2, 1-alpha/2)) # [2.17, 4.83]
 round(ci, digits = 2)
 ```
 
-There are many ways to estimate quantiles. The R function `quantile()` has 9 options for instance, with default to `type=7`. Hesterberg (2015) recommends using `type=6`. In Rand Wilcox's functions, the procedure in the next chunk is used, which gives results slightly different from those in the previous chunk. With a large number of bootstrap samples, which quantile method is used will make little difference. 
+There are many ways to estimate quantiles. For instance, the *R* function `quantile()` offers 9 types of calculations, with default to `type=7`. Hesterberg (2015) recommends using `type=6` to avoid getting confidence intervals that are too narrow. With sample sizes and `nboot` sufficiently large, the `type` argument will not matter, but it is unclear when this is the case.  
+
+In Rand Wilcox's functions, the procedure in the next chunk is used, which can give results slightly different from those in the previous chunk. With a large number of bootstrap samples, which quantile method is used will make little difference. 
 
 ```{r, eval = FALSE}
 alpha <- 0.05
@@ -175,7 +185,7 @@ ci <- c(bvec[low],bvec[up]) # [2.33, 4.83]
 round(ci, digits = 2)
 ```
 
-#### Graphical representation
+### Graphical representation
 The horizontal line marks the 95% confidence interval. The boxes report the values of the CI bounds. L stands for lower bound, U for upper bound.
 
 ```{r}
@@ -200,7 +210,7 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 # ggsave(filename=('./figures/figure_bootdensci.pdf'),width=7,height=5)
 ```
 
-### P value
+## P value
 ```{r}
 null.value <- 2.5 # null value for hypothesis testing
 half.pval <- mean(boot.m>null.value) +.5*mean(boot.m==null.value)
@@ -256,9 +266,9 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 # ggsave(filename=('./figures/figure_bootdenspval.pdf'),width=7,height=5)
 ```
 
-# Getting bootstrap confidence intervals using functions
+## Getting bootstrap confidence intervals using functions
 
-## `onesampb`
+### `onesampb`
 
 We can get the bootstrap confidence interval and *p* value by calling the `onesampb()` function from Rand Wilcox:
 ```{r}
@@ -266,15 +276,15 @@ set.seed(21)
 nboot <- 1000 # number of bootstrap samples
 onesampb(samp, est=mean, alpha=.05, nboot=nboot, nv=null.value)
 ```
-It can be used with any estimator, define with the `est` argument, for the median (`median`), a [**trimmed mean**](https://garstats.wordpress.com/2017/11/28/trimmed-means/) (`tm`), a [**quantile estimate**](https://garstats.wordpress.com/2016/06/09/the-harrell-davis-quantile-estimator/) (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
+
+`onesampb()` can be used with any estimator, define with the `est` argument, for instance the median (`median`), a [**trimmed mean**](https://garstats.wordpress.com/2017/11/28/trimmed-means/) (`tm`), a [**quantile estimate**](https://garstats.wordpress.com/2016/06/09/the-harrell-davis-quantile-estimator/) (`hd`) or some measure of variability, such as the median absolute deviation to the median (`mad`).
 
 Set `SEED` to `TRUE` to get the same results every time you use the function. Set it to `FALSE` to use difference random bootstrap samples, so the function returns different results every time you use it.
-`null.value` is the null value used in computing the *P* value.
+`null.value` is the null value used in computing the *p* value.
 
-## `boot`
+### `boot`
 
-Another option is to use the `boot()` function from the `boot` package (Canty & Ripley, 2017; Davison & Hinkley, 1997).
-This function is more complicated than using functions with a narrow focus like `onesampb()` because it requires creating a function to process the data. The advantage is that the bootstrap distribution is saved and can be used in a second step to make illustrations and compute various quantities. You can find a tutorial about the `boot` package for instance [here](https://www.datacamp.com/community/tutorials/bootstrap-r), [here](https://www.r-bloggers.com/understanding-bootstrap-confidence-interval-output-from-the-r-boot-package/).
+Another option is to use the `boot()` function from the `boot` package (Canty & Ripley, 2017; Davison & Hinkley, 1997). This function is more complicated than using functions with a narrow focus like `onesampb()` because it requires users to create a function to process the data. The advantage is that the bootstrap distribution is saved and can be used in a second step to make illustrations and compute various quantities. You can find a tutorial about the `boot` package for instance [**here**](https://www.datacamp.com/community/tutorials/bootstrap-r) and [**here**](https://www.r-bloggers.com/understanding-bootstrap-confidence-interval-output-from-the-r-boot-package/).
 
 ```{r}
 set.seed(21)
@@ -296,6 +306,9 @@ plot(boot.res)
 boot.ci(boot.res, type = "perc") # get percentile bootstrap CI
 ```
 
+Some values returned by the `boot.ci` are not covered in this tutorial:  
+- `bias` is the bootstrap estimate of bias of the statistic (in this case the mean), a topic covered in detail [**here**](https://psyarxiv.com/3y54r/)
+- `std.error` is the bootstrap estimate of the standard error of the statistic (mean). It is calculated as the standard deviation of the bootstrap distribution. See details in this other [**article**](https://psyarxiv.com/h8ft7/). 
 
 # Check CI coverage
 Example of a simple simulation to check the probability coverage of a confidence interval method. 
@@ -343,7 +356,7 @@ Load results
 load("./data/ci.coverage.RData")
 ```
 
-The population is lognormal and is generated outside the simulation loop by using `pop <- rlnorm(1000000)`. This approach works well, as in our example the population mean is `r pop.m`, which is very close to the [known true population mean](https://en.wikipedia.org/wiki/Log-normal_distribution) of `r exp(1/2)`. An alternative is to generate the random numbers directly inside the loop by using `samp <- rlnorm(nsamp)`. The first approach used here is useful when there is no formula available to define the theoretical population values for certain distributions, such as the 20% trimmed mean of a lognormal distribution.
+The population is lognormal and is generated outside the simulation loop by using `pop <- rlnorm(1000000)`. This approach works well, as in our example the population mean is `r round(pop.m, digits=3)`, which is very close to the [**known true population mean**](https://en.wikipedia.org/wiki/Log-normal_distribution) of `r round(exp(1/2), digits=3)`. An alternative is to generate the random numbers directly inside the loop by using `samp <- rlnorm(nsamp)`. The first approach used here is useful when there is no formula available to define the theoretical population values for certain distributions, such as the 20% trimmed mean of a lognormal distribution.
 
 The lognormal distribution is one of many skewed mathematical distributions. It serves to illustrate what can happen when sampling from skewed distributions in general. Other shapes could be used to, if some domain specific information is available. For instance, ex-Gaussian distributions do a good job at capturing the shape of reaction time distributions.
 
@@ -359,13 +372,13 @@ Coverage is `r round(out[1]*100, digits = 1)`% for the t-test, `r round(out[2]*1
 
 Want to see more examples of simulations + code? Head [**here**](https://garstats.wordpress.com/2017/11/28/your-alpha-is-probably-not-0-05/) for type I error simulations, and [**here**](https://garstats.wordpress.com/2017/11/28/your-power-is-lower-than-you-think/) for power simulations.
 
-# Compare 2 groups: difference in location
+# Compare 2 independent groups: difference in location
 
 Inferences on 20% trimmed means of skewed distributions.
 
 ## Make data
 
-We sample from log-normal distributions to mimic distributions of response times. Alternatively, we could have used the popular [ex-Gaussian distribution](https://psyarxiv.com/3y54r/). The details do not matter: the goal of the example is to make inferences about some sort of continuous and skewed distribution, which is very common in life sciences in general, and neuroscience and psychology in particular.
+We sample from log-normal distributions to mimic distributions of response times. Alternatively, we could have used the popular [**ex-Gaussian distribution**](https://psyarxiv.com/3y54r/). The details do not matter: the goal of the example is to make inferences about some sort of continuous and skewed distribution, which is very common in life sciences in general, and neuroscience and psychology in particular.
 
 ```{r, warning = FALSE, message = FALSE}
 set.seed(44) # reproducible results
@@ -464,7 +477,9 @@ boot2.tm <- apply(boot2, 1, mean, trim=ptrim)
 boot.diff <- sort(boot1.tm - boot2.tm)
 ```
 
-## Bootstrap confidence interval - as implemented in `pb2gen()`
+## Bootstrap confidence interval
+
+### Bootstrap confidence interval - as implemented in `pb2gen()`
 
 There are several ways to estimate quantiles; here is the formula used in `pb2gen()`, a function from Rand Wilcox dedicated to the comparisons of estimators from two independent groups, using the percentile bootstrap.
 
@@ -476,9 +491,7 @@ ci <- c(boot.diff[low], boot.diff[up])
 round(ci, digits = 1)
 ```
 
-## Bootstrap confidence interval - using the `quantile()` function
-
-The `quantile()` function offers 9 types of calculations - the default is `type=7`. Hesterberg (2015) recommends using `type=6`. With sample sizes and `nboot` sufficiently large, the `type` argument will not matter, but it is unclear when this is the case.
+### Bootstrap confidence interval - using the `quantile()` function
 
 ```{r}
 alpha <- 0.05
@@ -494,16 +507,18 @@ pval <- 2*(min(pval,1-pval)) # 0
 pval
 ```
 
-## Function
+## Bootstrap using functions
 
-The bootstrap confidence interval and the *p* value can also be obtained in one call to the `pb2gen()` function. The input est could be changed to many other estimators to make various bootstrap inferences about differences between independent groups.
+The bootstrap confidence interval and the *p* value can also be obtained in one call to the `pb2gen()` function. The input `est` could be changed to many other estimators to make various bootstrap inferences about differences between independent groups.
 
 ```{r}
 set.seed(1)
-pb2gen(g1, g2, alpha=0.05, nboot=1000, est=mean, trim=0.2)
+pb2gen(g1, g2, alpha=0.05, nboot=nboot, est=mean, trim=0.2)
 ```
 
-The same can be done with the `boot()` function but it gets more complicated to program. We can use a helper function from the `simpleboot` package to ease the process:
+The output `sq.se` is the bootstrap standard error of the difference between trimmed means.
+
+The same analysis can be done with the `boot()` function but it gets more complicated to program. We can use a helper function from the `simpleboot` package to ease the process:
 ```{r}
 # bootstrap data
 set.seed(1)
@@ -554,12 +569,13 @@ boot.diff <- sort(boot1.mad - boot2.mad)
 ```
 
 ## Bootstrap confidence interval
+
 ```{r}
 ci <- c(boot.diff[low], boot.diff[up]) # [-62.2, 4.3]
 ci
 ```
 
-## Bootstrap confidence interval - quantile method
+Using the `quantile()` function:
 ```{r}
 ci <- quantile(boot.diff, probs = c(alpha/2, 1-alpha/2)) # [-62.2, 4.5]
 ci
@@ -600,19 +616,31 @@ ggplot(df, aes(x = x, y = y)) + theme_gar +
 # ggsave(filename=('./figures/figure_mad.pdf'),width=7,height=5)
 ```
 
-## Function
+## Bootstrap using functions
+
+### `pb2gen()` function
 ```{r}
 set.seed(1)
-pb2gen(g1, g2, alpha=0.05, nboot=1000, est=mad)
+pb2gen(g1, g2, alpha=0.05, nboot=nboot, est=mad)
+```
+
+### `boot()` function
+```{r}
+# bootstrap data
+set.seed(1)
+boot.res <- two.boot(g1, g2, FUN=mad, R=nboot)
+
+# get 95% confidence interval 
+boot.ci(boot.res, type = "perc") # get percentile bootstrap CI
 ```
 
 Instead of looking separately at group differences in central tendency and spread, we can have a more detailed look at how distributions differ by using a [**shift function**](https://garstats.wordpress.com/2016/07/12/shift-function/), which is available in the [**rogme**](https://github.com/GRousselet/rogme) R package.
 
 # Bootstrap confidence intervals of correlation coefficients
 
-**This section is not described in the article because we were asked to shorten the examples.**
+**[This section is not described in the article]**
 
-Finally, we use the bootstrap to make inferences about correlations. Imagine we did an experiment in which we measured two variables in the same participants. In this example we sample from 2 weakly correlated variables. Changing the random seed or commenting out the line `set.seed(21)` will give different results. You can also change the population correlation by changing `rho`. In the following code we define population correlations as Spearman's correlations. This is achieved using the `SimJoint` package. Another solution is to use the Iman-Conover method (1982), as implemented in the `mc2d` package (Pouillot & Delignette-Muller, 2010).
+Finally, we use the bootstrap to make inferences about correlations. Imagine we did an experiment in which we measured two variables in the same participants. In this example we sample from 2 weakly correlated variables. Changing the random seed or commenting out the line `set.seed(777)` will give different results. You can also change the population correlation by changing `rho`. In the following code we define population correlations as Spearman's correlations. This is achieved using the `SimJoint` package. Another solution is to use the Iman-Conover method (1982), as implemented in the `mc2d` package (Pouillot & Delignette-Muller, 2010).
 
 ## Make data
 ```{r, eval=FALSE}
@@ -632,17 +660,16 @@ pop <- cbind(rnorm(npop), rnorm(npop)) # uncorrelated random normal samples
 # Impose correlation using the mc2d package:
 # pop <- mc2d::cornode(pop, target = rho)
 
-# cor(pop[,1], pop[,2], method = "spearman") # check population Spearman correlation
-# cor(pop[,1], pop[,2], method = "pearson") # check population Pearson correlation
-
 # Impose correlation using the SimJoint package:
 pop <- apply(pop, 2, function(x) sort(x))
 res <- SimJoint::SJspearman(X = pop, cor = sigma1)
 pop <- res$X
 
+# cor(pop[,1], pop[,2], method = "spearman") # check population Spearman correlation
+# cor(pop[,1], pop[,2], method = "pearson") # check population Pearson correlation
 # plot(pop[1:10000,])
 
-# group 1
+# group 1: take random sample of size n from population
 set.seed(1)
 id <- sample(npop, n)
 x1 <- pop[id,1]
@@ -693,29 +720,29 @@ for(B in 1:nboot){
 }
 ```
 
-In the code, the variable `boot.id` is a vector of participant indices, sampled with replacement from the full list of participants. These indices are then used to index the matched vectors of `x1` and `y1`. That way, paired observations are kept together. Spearman’s correlation is computed for each of these bootstrap pairs. 
+In the code, the variable `boot.id` is a vector of participant indices, sampled with replacement from the full list of participants. These indices are then used to index the matched vectors `x1` and `y1`. That way, paired observations are kept together. Spearman’s correlation is computed for each of these bootstrap pairs. 
 
-## Bootstrap confidence interval
+### Bootstrap confidence interval
 ```{r}
 corci1 <- quantile(boot.corr1, probs = c(alpha/2, 1-alpha/2))
 corci1
 ```
 
-## P value
+### P value
 ```{r}
 pval <- sum(boot.corr1 < 0)/nboot
 pval <- 2 * min(pval, 1 - pval)
 pval
 ```
 
-The bootstrap results can also be obtained by calling the R command: `corb(x1,y1, corfun = spear, SEED = FALSE)`. The argument `corfun` can be changed from `spear` (for Spearman) to another correlation function, such as `pbcor` for a percentage bend correlation or `wincor` for a Winsorized correlation. For bootstrap inferences about the non-robust Pearson's correlation, a modified bootstrap technique is required, which is implemented in the function `pcorb`.
+The bootstrap results can also be obtained by calling the R command: `corb(x1,y1, corfun = spear, SEED = FALSE)`. The argument `corfun` can be changed from `spear` (for Spearman) to another correlation function, such as `pbcor` for a percentage bend correlation or `wincor` for a Winsorized correlation. For bootstrap inferences about the non-robust Pearson's correlation, a modified bootstrap technique is required, which is implemented in the function `pcorb`. For details about these correlation methods, see Pernet et al. (2013) and Wilcox (2017).
 
 ## Illustrate bootstrap correlation coefficients
 
 The resulting bootstrap distribution is illustrated below.
 
 ```{r}
-cor1 <- spear(x1, y1)$cor
+cor1 <- cor(x1, y1, method = "spearman")
 
 df <- as_tibble(with(density(boot.corr1),data.frame(x,y)))
 
@@ -737,7 +764,7 @@ pB <- p
 p
 ```
 
-For simulations on the (large) sample sizes needed to precisely estimate correlation analyses, see this [**blog post**](https://garstats.wordpress.com/2018/06/01/smallncorr/). To see why conditioning correlation results on p values can lead to a literature full of false positives, see this [**blog post**](https://garstats.wordpress.com/2018/06/22/corrcondpval/). Finally,  simulations of statistical power for correlation analyses are available [**here**](https://garstats.wordpress.com/2018/06/29/corrpower/).
+For simulations on the (large) sample sizes needed to precisely estimate correlation analyses, see this [**blog post**](https://garstats.wordpress.com/2018/06/01/smallncorr/). To see why conditioning correlation results on *p* values can lead to a literature full of false positives, see this [**blog post**](https://garstats.wordpress.com/2018/06/22/corrcondpval/). Finally,  simulations of statistical power for correlation analyses are available [**here**](https://garstats.wordpress.com/2018/06/29/corrpower/).
 
 
 # Compare correlation coefficients
@@ -809,13 +836,13 @@ for(B in 1:nboot){
 }
 ```
 
-## Bootstrap confidence interval
+### Bootstrap confidence interval
 ```{r}
 diff.ci <- quantile(boot.diff, probs = c(alpha/2, 1-alpha/2)) # [-0.499, 0.030]
 round(diff.ci, digits = 3)
 ```
 
-## P value
+### P value
 ```{r}
 pval <- sum(boot.diff < 0)/nboot
 pval <- 2 * min(pval, 1 - pval) # 0.0904
@@ -824,9 +851,9 @@ pval
 
 The bootstrap results can be obtained by calling the R command: `twocor(x1,y1,x2,y2, corfun = spear)`. The input argument corfun can be changed to another robust function, as already mentioned. To compare two percentage bend correlations, use this command instead: `twocor(x1,y1,x2,y2, corfun = pbcor)`. And to compare two Pearson's correlations: `twopcor(x1,y1,x2,y2)`. We do not recommend the use of Fisher’s r-to-z transform to compare Pearson’s correlations, because this procedure assumes normality and even a small departure from a normal distribution can result in poor performance regardless of how large the sample size might be (Wilcox, 2017).
 
-## Bootstrap correlation coefficients
+## Bootstrap distribution of correlation coefficient differences
 ```{r}
-corr.diff <- spear(x1, y1)$cor - spear(x2, y2)$cor
+corr.diff <- cor(x1, y1, method = "spearman") - cor(x2, y2, method = "spearman")
 
 df <- as_tibble(with(density(boot.diff),data.frame(x,y)))
 
@@ -879,6 +906,8 @@ Iman, R.L. & Conover, W.J. (1982) A distribution-free approach to inducing rank 
 
 Charlie Wusuo Liu (2019). SimJoint: Simulate Joint Distribution. R package
   version 0.2.2. https://CRAN.R-project.org/package=SimJoint
+  
+Pernet, C.R., Wilcox, R.R., & Rousselet, G.A. (2013) Robust Correlation Analyses: False Positive and Power Validation Using a New Open Source Matlab Toolbox. Front. Psychol., 3. https://www.frontiersin.org/articles/10.3389/fpsyg.2012.00606/full
 
 Pouillot, R. & Delignette-Muller, M.-L. (2010). Evaluating variability and uncertainty in microbial quantitative risk
   assessment using two R packages. International Journal of Food Microbiology. 142(3):330-40
