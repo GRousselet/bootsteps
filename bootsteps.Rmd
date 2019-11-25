@@ -351,12 +351,12 @@ apply(ci.coverage, 2, mean) # average across simulations for each method
 save(ci.coverage, pop.m, pop.tm, file = "./data/ci.coverage.RData")
 ```
 
-Load results
+Load results: **the next chunk requires the `data/` folder to be in the same directory as this notebook**. Alternatively, you could run the simulation in the previous chunk to recreate the results.
 ```{r}
 load("./data/ci.coverage.RData")
 ```
 
-The population is lognormal and is generated outside the simulation loop by using `pop <- rlnorm(1000000)`. This approach works well, as in our example the population mean is `r round(pop.m, digits=3)`, which is very close to the [**known true population mean**](https://en.wikipedia.org/wiki/Log-normal_distribution) of `r round(exp(1/2), digits=3)`. An alternative is to generate the random numbers directly inside the loop by using `samp <- rlnorm(nsamp)`. The first approach used here is useful when there is no formula available to define the theoretical population values for certain distributions, such as the 20% trimmed mean of a lognormal distribution.
+The population is lognormal and is generated outside the simulation loop by using `pop <- rlnorm(1000000)`. This approach works well, as in our example the population mean is `r round(pop.m, digits=3)`, which is very close to the [**known true population mean**](https://en.wikipedia.org/wiki/Log-normal_distribution) of `r round(exp(1/2), digits=3)`. An alternative is to generate the random numbers directly inside the loop by using `samp <- rlnorm(nsamp)`. The first approach used here makes it more intuitive that we sample from a known population. This approach is also useful when there is no formula available to define the theoretical population values for certain distributions.
 
 The lognormal distribution is one of many skewed mathematical distributions. It serves to illustrate what can happen when sampling from skewed distributions in general. Other shapes could be used to, if some domain specific information is available. For instance, ex-Gaussian distributions do a good job at capturing the shape of reaction time distributions.
 
