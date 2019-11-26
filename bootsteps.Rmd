@@ -108,7 +108,7 @@ nboot <- 1000 # number of bootstrap samples
 # declare vector of results
 boot.m <- vector(mode = "numeric", length = nboot) 
 
-for(B in 1:nboot){
+for(B in 1:nboot){ # bootstrap loop
   boot.samp <- sample(samp, size = n, replace = TRUE) # sample with replacement
   boot.m[B] <- mean(boot.samp) # save bootstrap means
 }
