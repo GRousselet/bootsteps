@@ -1,8 +1,8 @@
 Reproducibility package for the article:
 
-**The percentile bootstrap: a primer with step-by-step instructions in R**
-Rousselet G.A., Pernet C.R., Wilcox R.R.
-*submitted*
+**The percentile bootstrap: a primer with step-by-step instructions in R**  
+Rousselet G.A., Pernet C.R., Wilcox R.R. (2020)  
+*Advances in Methods and Practices in Psychological Science*  
 
 [[GitHub repository](https://github.com/GRousselet/bootsteps)]
 
@@ -12,9 +12,9 @@ This tutorial provides a very short and lightweight introduction to the percenti
 
 The repository contains the [R](https://www.r-project.org/) code  used in the article. The code is best seen by running the RMarkdown notebook in [RStudio](https://www.rstudio.com/).
 
-The code is released under the [MIT license](https://opensource.org/licenses/MIT). Copyright 2019, Guillaume A. Rousselet.
+The code is released under the [MIT license](https://opensource.org/licenses/MIT). Copyright 2019-2020, Guillaume A. Rousselet.
 
-The figures are released under the [CC-BY 4.0 license](https://creativecommons.org/licenses/by/4.0/legalcode). Copyright 2019, Rousselet, Pernet & Wilcox.
+The figures are released under the [CC-BY 4.0 license](https://creativecommons.org/licenses/by/4.0/legalcode). Copyright 2019-2020, Rousselet, Pernet & Wilcox.
 
 # Content
 |folder|description|location|
