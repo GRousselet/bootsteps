@@ -67,7 +67,7 @@ For packages not focused on bootstrap methods, example functions are provided in
 - [`rogme`](https://github.com/GRousselet/rogme) (Rousselet, Pernet, & Wilcox, 2017)
 
 ## Interactive demo
-[Frequentist inference: confidence interval & bootstrap](https://seeing-theory.brown.edu/frequentist-inference/index.html#section2)
+[Frequentist inference: confidence interval & bootstrap](https://seeing-theory.brown.edu/frequentist-inference/index.html)
 
 ## Books
 Suggested books on bootstrap methods, robust statistics and simulations.
