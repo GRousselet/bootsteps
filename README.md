@@ -4,6 +4,8 @@ Reproducibility package for the article:
 Rousselet G.A., Pernet C.R., Wilcox R.R. (2020)  
 *Advances in Methods and Practices in Psychological Science*  
 
+[[Article](https://journals.sagepub.com/doi/10.1177/2515245920911881)]
+
 [[GitHub repository](https://github.com/GRousselet/bootsteps)]
 
 [[OSF repository](https://osf.io/dvuze/)]
